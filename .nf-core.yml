@@ -1,28 +1,26 @@
-repository_type: pipeline
-
-nf_core_version: 3.5.2
-
 lint:
-  files_unchanged:
-    - .github/CONTRIBUTING.md
-    - assets/sendmail_template.txt
-  multiqc_config: false
   files_exist:
     - conf/igenomes.config
     - conf/igenomes_ignored.config
     - assets/multiqc_config.yml
-
+  files_unchanged:
+    - .github/CONTRIBUTING.md
+    - assets/sendmail_template.txt
+  multiqc_config: false
+  template_strings: false
+nf_core_version: 4.0.2
+repository_type: pipeline
 template:
-  org: nf-core
-  name: bacmodel
-  description: Systems-based bacterial functional modeling pipeline
   author: Olga Brovkina
-  version: 1.0.0dev
-  force: true
+  description: Systems-based bacterial functional modeling pipeline
+  force: false
+  is_nfcore: true
+  name: bacmodel
+  org: nf-core
   outdir: .
   skip_features:
     - igenomes
     - multiqc
     - fastqc
     - gpu
-  is_nfcore: true
+  version: 1.0.0
