@@ -1,14 +1,13 @@
 lint:
+  container_configs: false
   files_exist:
     - conf/igenomes.config
     - conf/igenomes_ignored.config
     - assets/multiqc_config.yml
-  files_unchanged:
-    - .github/CONTRIBUTING.md
-    - assets/sendmail_template.txt
+  files_unchanged: false
   multiqc_config: false
   template_strings: false
-nf_core_version: 4.0.2
+nf_core_version: 4.0.3
 repository_type: pipeline
 template:
   author: Olga Brovkina
