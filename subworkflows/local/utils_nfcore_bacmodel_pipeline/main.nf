@@ -52,6 +52,9 @@ workflow PIPELINE_INITIALISATION {
     //
     // Validate parameters and generate parameter summary to stdout
     //
+
+    def before_text = ""
+    def after_text = ""
     before_text = """
 -\033[2m----------------------------------------------------\033[0m-
                                         \033[0;32m,--.\033[0;30m/\033[0;32m,-.\033[0m
@@ -69,6 +72,10 @@ workflow PIPELINE_INITIALISATION {
 * Software dependencies
     https://github.com/nf-core/bacmodel/blob/master/CITATIONS.md
 """
+    if (monochrome_logs) {
+        before_text = before_text.replaceAll(/\033\[[0-9;]*m/, '')
+    }
+
     command = "nextflow run ${workflow.manifest.name} -profile <docker/singularity/.../institute> --input samplesheet.csv --outdir <OUTDIR>"
 
     UTILS_NFSCHEMA_PLUGIN (
@@ -96,7 +103,7 @@ workflow PIPELINE_INITIALISATION {
     //
 
     channel
-        .fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
+        .fromList(samplesheetToList(input, "${projectDir}/assets/schema_input.json"))
         .map {
             meta, fasta ->
                 return [ meta, fasta ]
@@ -122,7 +129,6 @@ workflow PIPELINE_COMPLETION {
     plaintext_email // boolean: Send plain-text email instead of HTML
     outdir          //    path: Path to output directory where results will be published
     monochrome_logs // boolean: Disable ANSI colour codes in log output
-    hook_url        //  string: hook URL for notifications
 
     main:
     summary_params = paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
@@ -147,7 +153,7 @@ workflow PIPELINE_COMPLETION {
     }
 
     workflow.onError {
-        log.error "Pipeline failed. Please refer to troubleshooting docs: https://nf-co.re/docs/usage/troubleshooting"
+        log.error "Pipeline failed. Please refer to troubleshooting docs for common issues: https://nf-co.re/docs/running/troubleshooting"
     }
 }
 
