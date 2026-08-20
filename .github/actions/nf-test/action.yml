@@ -30,24 +30,24 @@ runs:
         df -h
 
     - name: Setup Nextflow
-      uses: nf-core/setup-nextflow@b4ec1bc7c16a94435159de94a05253542fddf6ef # v3
+      uses: nf-core/setup-nextflow@v2
       with:
         version: "${{ env.NXF_VERSION }}"
 
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+      uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6
       with:
         python-version: "3.14"
 
     - name: Install nf-test
-      uses: nf-core/setup-nf-test@4069fbbaabe94c08faba4ad261bfa88225ba133f # v2
+      uses: nf-core/setup-nf-test@v1
       with:
         version: "${{ env.NFT_VER }}"
         install-pdiff: true
 
     - name: Setup apptainer
       if: contains(inputs.profile, 'singularity')
-      uses: eWaterCycle/setup-apptainer@4bb22c52d4f63406c49e94c804632975787312b3 # v2.0.0
+      uses: eWaterCycle/setup-apptainer@main
 
     - name: Set up Singularity
       if: contains(inputs.profile, 'singularity')

@@ -38,8 +38,7 @@ workflow NFCORE_BACMODEL {
     // WORKFLOW: Run pipeline
     //
     BACMODEL (
-        samplesheet,
-        params.outdir,
+        samplesheet
     )
 }
 /*
@@ -81,6 +80,7 @@ workflow {
         params.plaintext_email,
         params.outdir,
         params.monochrome_logs,
+        params.hook_url,
     )
 }
 
