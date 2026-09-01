@@ -4,10 +4,16 @@ lint:
     - conf/igenomes.config
     - conf/igenomes_ignored.config
     - assets/multiqc_config.yml
+    - .github/workflows/linting_comment.yml
   files_unchanged: false
   multiqc_config: false
+  nextflow_config:
+    - config_defaults:
+        - params.baktadb
+        - params.pfamdb
+        - params.macsyfinder_db
   template_strings: false
-nf_core_version: 4.0.3
+nf_core_version: 4.1.0
 repository_type: pipeline
 template:
   author: Olga Brovkina
