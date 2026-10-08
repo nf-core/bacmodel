@@ -11,10 +11,8 @@
 include { UTILS_NFSCHEMA_PLUGIN     } from '../../nf-core/utils_nfschema_plugin'
 include { paramsSummaryMap          } from 'plugin/nf-schema'
 include { samplesheetToList         } from 'plugin/nf-schema'
-include { paramsHelp                } from 'plugin/nf-schema'
 include { completionEmail           } from '../../nf-core/utils_nfcore_pipeline'
 include { completionSummary         } from '../../nf-core/utils_nfcore_pipeline'
-include { imNotification            } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NFCORE_PIPELINE     } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NEXTFLOW_PIPELINE   } from '../../nf-core/utils_nextflow_pipeline'
 
@@ -42,6 +40,12 @@ workflow PIPELINE_INITIALISATION {
     ch_versions = channel.empty()
 
     //
+    // Fail fast on removed/renamed parameters, since nf-schema accepts unknown
+    // params silently and they would otherwise just be ignored
+    //
+    checkDeprecatedParams()
+
+    //
     // Print version and exit if required and dump pipeline parameters to JSON file
     //
     UTILS_NEXTFLOW_PIPELINE (
@@ -54,6 +58,9 @@ workflow PIPELINE_INITIALISATION {
     //
     // Validate parameters and generate parameter summary to stdout
     //
+
+    def before_text = ""
+    def after_text = ""
     before_text = """
 -\033[2m----------------------------------------------------\033[0m-
                                         \033[0;32m,--.\033[0;30m/\033[0;32m,-.\033[0m
@@ -71,6 +78,10 @@ workflow PIPELINE_INITIALISATION {
 * Software dependencies
     https://github.com/nf-core/bacmodel/blob/master/CITATIONS.md
 """
+    if (monochrome_logs) {
+        before_text = before_text.replaceAll(/\033\[[0-9;]*m/, '')
+    }
+
     command = "nextflow run ${workflow.manifest.name} -profile <docker/singularity/.../institute> --input samplesheet.csv --outdir <OUTDIR>"
 
     UTILS_NFSCHEMA_PLUGIN (
@@ -82,7 +93,8 @@ workflow PIPELINE_INITIALISATION {
         show_hidden,
         before_text,
         after_text,
-        command
+        command,
+        false
     )
 
     //
@@ -97,22 +109,10 @@ workflow PIPELINE_INITIALISATION {
     //
 
     channel
-        .fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
+        .fromList(samplesheetToList(input, "${projectDir}/assets/schema_input.json"))
         .map {
-            meta, fastq_1, fastq_2 ->
-                if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
-                } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
-                }
-        }
-        .groupTuple()
-        .map { samplesheet ->
-            validateInputSamplesheet(samplesheet)
-        }
-        .map {
-            meta, fastqs ->
-                return [ meta, fastqs.flatten() ]
+            meta, fasta ->
+                return [ meta, fasta ]
         }
         .set { ch_samplesheet }
 
@@ -135,7 +135,6 @@ workflow PIPELINE_COMPLETION {
     plaintext_email // boolean: Send plain-text email instead of HTML
     outdir          //    path: Path to output directory where results will be published
     monochrome_logs // boolean: Disable ANSI colour codes in log output
-    hook_url        //  string: hook URL for notifications
 
     main:
     summary_params = paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
@@ -157,13 +156,10 @@ workflow PIPELINE_COMPLETION {
         }
 
         completionSummary(monochrome_logs)
-        if (hook_url) {
-            imNotification(summary_params, hook_url)
-        }
     }
 
     workflow.onError {
-        log.error "Pipeline failed. Please refer to troubleshooting docs: https://nf-co.re/docs/usage/troubleshooting"
+        log.error "Pipeline failed. Please refer to troubleshooting docs for common issues: https://nf-co.re/docs/running/troubleshooting"
     }
 }
 
@@ -172,6 +168,26 @@ workflow PIPELINE_COMPLETION {
     FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
+
+//
+// Error out on parameters that were renamed, so old job scripts fail loudly
+// instead of silently keeping the (inverted) default of the new parameter
+//
+def checkDeprecatedParams() {
+    def renamed_params = [
+        run_macsyfinder: 'skip_macsyfinder',
+        run_traitar     : 'skip_traitar',
+        run_carveme     : 'skip_carveme',
+        run_gapseq      : 'skip_gapseq',
+        run_memote      : 'skip_memote',
+    ]
+
+    def used = renamed_params.keySet().findAll { params.containsKey(it) }
+    if (used) {
+        def message = used.collect { old_name -> "  --${old_name} has been replaced by --${renamed_params[old_name]} (note: the meaning is inverted)" }.join('\n')
+        error("Removed parameter(s) detected:\n${message}\nPlease update your command/script and re-run.")
+    }
+}
 
 //
 // Validate channels from input samplesheet
@@ -191,11 +207,13 @@ def validateInputSamplesheet(input) {
 // Generate methods description for MultiQC
 //
 def toolCitationText() {
-    // TODO nf-core: Optionally add in-text citation tools to this list.
-    // Can use ternary operators to dynamically construct based conditions, e.g. params["run_xyz"] ? "Tool (Foo et al. 2023)" : "",
-    // Uncomment function in methodsDescriptionText to render in MultiQC report
     def citation_text = [
             "Tools used in the workflow included:",
+            params.annotation_tool == 'prokka' ? "Prokka (Seemann 2014)" : "Bakta (Schwengers et al. 2021)",
+            !params.skip_macsyfinder ? "MacSyFinder (Abby et al. 2014)" : "",
+            !params.skip_traitar ? "TRAITAR (Weimann et al. 2016)" : "",
+            !params.skip_carveme ? "CarveMe (Machado et al. 2018)" : "",
+            !params.skip_gapseq ? "gapseq (Zimmermann et al. 2021)" : "",
             "."
         ].join(' ').trim()
 
@@ -203,10 +221,12 @@ def toolCitationText() {
 }
 
 def toolBibliographyText() {
-    // TODO nf-core: Optionally add bibliographic entries to this list.
-    // Can use ternary operators to dynamically construct based conditions, e.g. params["run_xyz"] ? "<li>Author (2023) Pub name, Journal, DOI</li>" : "",
-    // Uncomment function in methodsDescriptionText to render in MultiQC report
     def reference_text = [
+            params.annotation_tool == 'prokka' ? "<li>Seemann T (2014) Prokka: rapid prokaryotic genome annotation. Bioinformatics 30:2068-2069. doi: 10.1093/bioinformatics/btu153</li>" : "<li>Schwengers O, et al. (2021) Bakta: rapid and standardized annotation of bacterial genomes via alignment-free sequence identification. Microbial Genomics 7:000685. doi: 10.1099/mgen.0.000685</li>",
+            !params.skip_macsyfinder ? "<li>Abby SS, et al. (2014) MacSyFinder: A Program to Mine Genomes for Molecular Systems with an Application to CRISPR-Cas Systems. PLoS ONE 9:e110726. doi: 10.1371/journal.pone.0110726</li>" : "",
+            !params.skip_traitar ? "<li>Weimann A, et al. (2016) From Genomes to Phenotypes: Traitar, the Microbial Trait Analyzer. mSystems 1:e00101-16. doi: 10.1128/mSystems.00101-16</li>" : "",
+            !params.skip_carveme ? "<li>Machado D, et al. (2018) Fast automated reconstruction of genome-scale metabolic models for microbial species and communities. Nucleic Acids Research 46:7542-7553. doi: 10.1093/nar/gky537</li>" : "",
+            !params.skip_gapseq ? "<li>Zimmermann J, et al. (2021) gapseq: informed prediction of bacterial metabolic pathways and reconstruction of accurate metabolic models. Genome Biology 22:81. doi: 10.1186/s13059-021-02295-1</li>" : "",
         ].join(' ').trim()
 
     return reference_text
@@ -236,9 +256,8 @@ def methodsDescriptionText(mqc_methods_yaml) {
     meta["tool_citations"] = ""
     meta["tool_bibliography"] = ""
 
-    // TODO nf-core: Only uncomment below if logic in toolCitationText/toolBibliographyText has been filled!
-    // meta["tool_citations"] = toolCitationText().replaceAll(", \\.", ".").replaceAll("\\. \\.", ".").replaceAll(", \\.", ".")
-    // meta["tool_bibliography"] = toolBibliographyText()
+    meta["tool_citations"] = toolCitationText().replaceAll(", \\.", ".").replaceAll("\\. \\.", ".").replaceAll(", \\.", ".")
+    meta["tool_bibliography"] = toolBibliographyText()
 
 
     def methods_text = mqc_methods_yaml.text
