@@ -1,28 +1,24 @@
 repository_type: pipeline
-nf_core_version: 4.1.0
+nf_core_version: 4.2.1
 lint:
-  multiqc_config: false
+  files_exist:
+    - conf/igenomes.config
+    - conf/igenomes_ignored.config
+    - assets/multiqc_config.yml
+    - .github/workflows/linting_comment.yml
   files_unchanged:
     # Custom banner (mascot + wordmark) reused as the metro-map legend logo too -
     # see .github/CONTRIBUTING.md ("Images and figures"). Must not be reverted to
     # the template placeholder.
     - docs/images/nf-core-bacmodel_logo_light.png
-  files_exist:
-    - conf/igenomes.config
-    - conf/igenomes_ignored.config
-    - assets/multiqc_config.yml
-    # Deliberately removed upstream (nf-core/tools commit d464fec, "Remove vulnerable
-    # PR-comment artifact pattern") for a security issue in how it posted PR comments.
-    # The template's expected-files list hasn't caught up with that removal yet.
-    - .github/workflows/linting_comment.yml
-  template_strings: false
-  nextflow_config:
+  multiqc_config: false
   # The deprecated_options block in nextflow_schema.json (run_macsyfinder, run_traitar,
   # run_carveme, run_gapseq, run_memote) intentionally has no nextflow.config counterpart -
   # it exists purely so nf-schema can fail fast with a helpful redirect message if someone
   # still passes the old flag names. Adding those names to validation.defaultIgnoreParams
   # instead would also suppress that error message, defeating the point of the block.
   schema_params: false
+  template_strings: false
 template:
   org: nf-core
   name: bacmodel
