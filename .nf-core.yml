@@ -3,12 +3,13 @@ lint:
     - conf/igenomes.config
     - conf/igenomes_ignored.config
     - assets/multiqc_config.yml
+    - .github/workflows/linting_comment.yml
   files_unchanged:
     - docs/images/nf-core-bacmodel_logo_light.png
   multiqc_config: false
   schema_params: false
   template_strings: false
-nf_core_version: 4.2.1
+nf_core_version: 4.2.2
 repository_type: pipeline
 template:
   author: Olga Brovkina
@@ -23,4 +24,4 @@ template:
     - multiqc
     - fastqc
     - gpu
-  version: 1.0.0
+  version: 1.0.1
